@@ -24,16 +24,19 @@ References:
 
  */
 var Transform = require('stream').Transform;
-var util  = require(  "util" ).inherits;
+var inherits = require('util').inherits;
 
-//other modules such as fs, commander, underscore etc are loaded
-// For Node 0.8 users 
+var program = require('commander');
+var fs = require('fs');
 
 if (!Transform) {
   Transform = require('readable-stream/transform');
 }
+
 //Constructor logic includes Internal state logic. PatternMatch needs to consider it because it has to parse chunks that gets transformed
-function PatternMatch() {
+function PatternMatch( pattern ) {
+  this.pattern = pattern;
+
   //Switching on object mode so when stream reads sensordata it emits single pattern match.
   Transform.call(
     this,
@@ -51,10 +54,16 @@ inherits(PatternMatch, Transform);
 // Transform classes require that we implement a single method called _transform and
 //optionally implement a method called _flush. You assignment will implement both.
 PatternMatch.prototype._transform = function (chunk, encoding, getNextChunk){
+  var regex = new RegExp(`([^${this.pattern}]+)\\${this.pattern}`, 'g');
+  this.push(chunk.toString().match(regex));
+  
+  // this.push(chunk.toString().split(this.pattern));
+  getNextChunk(null);
 }
 //After stream has been read and transformed, the _flush method is called. It is a great
 //place to push values to output stream and clean up existing data
 PatternMatch.prototype._flush = function (flushCompleted) {
+  flushCompleted();
 }
 
 //That wraps up patternMatch module.
@@ -64,10 +73,29 @@ program
   .parse(process.argv);
 
 // Create an input stream from the file system.
-var inputStream = fileSystem.createReadStream( "input-sensor.txt" );
+var inputStream = fs.createReadStream( "input-sensor.txt" );
 
 // Create a Pattern Matching stream that will run through the input and find matches
 // for the given pattern at the command line - "." and “,”.
-var patternStream = inputStream.pipe( new PatternMatch(...));
+var patternStream = inputStream.pipe( new PatternMatch(program.pattern));
 // Read matches from the stream.
-patternStream.on()
+
+var input = ""
+inputStream.on('data', (data) => {
+  input += data.toString();
+})
+
+inputStream.on('end', () => {
+  console.log("-------Input-------");
+  console.log(input);
+})
+
+var output = []
+patternStream.on('data', (data) => {
+  output = output.concat(data);
+})
+
+patternStream.on('end', () => {
+  console.log("-------Output-------");
+  console.log(output);
+})
