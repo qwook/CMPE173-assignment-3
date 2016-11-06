@@ -55,8 +55,17 @@ inherits(PatternMatch, Transform);
 //optionally implement a method called _flush. You assignment will implement both.
 PatternMatch.prototype._transform = function (chunk, encoding, getNextChunk){
   var regex = new RegExp(`([^${this.pattern}]+)\\${this.pattern}`, 'g');
-  this.push(chunk.toString().match(regex));
-  
+  var patterns = [];
+
+  var str = chunk.toString();
+  var m;
+  while (m = regex.exec(str)) {
+    patterns.push(m[1]);
+  }
+
+  this.push(patterns);
+
+
   // this.push(chunk.toString().split(this.pattern));
   getNextChunk(null);
 }
